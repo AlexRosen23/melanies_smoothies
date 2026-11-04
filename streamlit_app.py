@@ -45,13 +45,14 @@ if ingredients_list:
  
     #st.write(ingredients_string)
  
+    # Bind the values instead of pasting them into the SQL, so a name like O'Brien (or a crafted one) can't break the statement
     my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
-            values ('""" + ingredients_string + """', '""" +name_on_order+ """')"""
+            values (?, ?)"""
  
-    st.write(my_insert_stmt)
+    st.write('Your order: ', ingredients_string, ' for ', name_on_order)
     time_to_insert = st.button('Submit Order')
  
     if time_to_insert:
-        session.sql(my_insert_stmt).collect()
+        session.sql(my_insert_stmt, params=[ingredients_string, name_on_order]).collect()
 
         st.success('Your Smoothie is ordered!', icon="✅")
