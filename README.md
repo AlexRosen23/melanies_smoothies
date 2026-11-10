@@ -1,71 +1,150 @@
 # Melanie's Smoothies
 
-A small Streamlit app where you pick up to five fruits, see their nutrition data and submit a smoothie order into a Snowflake table.
+A small Streamlit order form backed by Snowflake. You name a smoothie, pick up to five fruits, see nutrition data
+for each one from the public [Fruityvice](https://fruityvice.com) API, and submit the order into a Snowflake
+table. I built it in June 2024 while working through a Snowflake and Streamlit course; "Melanie's Smoothies" is
+the exercise's scenario, not a real shop, and no real orders go through it. It stays public as a record of a
+first data app: one script that reads from a warehouse, calls an outside API and writes back.
 
-**Status:** Finished course project (2024), with small maintenance updates in 2026 · **Stack:** Python, Streamlit, Snowflake (Snowpark), pandas · Written by hand in 2024 as a Snowflake and Streamlit course project; 2026 updates made with [Claude Code](https://claude.com/claude-code)
-
-## What it does
-
-You type a name for the smoothie, choose up to five fruits from a list, and the app shows nutrition information for each fruit. Pressing Submit Order writes the order to a table in Snowflake.
-
-The app was written by hand in June 2024 while working through a Snowflake and Streamlit course. In November 2026 Claude Code was used for two small changes: a consolidated dependency update, and a security fix so that order values are bound as parameters instead of being pasted into the SQL statement.
-
-## Key features
-
-- Fruit list loaded from a Snowflake table through a Snowpark session.
-- Multi-select limited to five ingredients.
-- Nutrition lookup for each chosen fruit from the public Fruityvice API.
-- Order submission into a Snowflake `orders` table.
-- Parameterized INSERT, so names such as `O'Brien` cannot break the statement.
-
-## How it works
-
-```
-streamlit_app.py    the whole app: UI, Snowflake reads, API calls, order insert
-requirements.txt    dependencies
-```
-
-The app reads fruit names and API search terms from a `fruit_options` table, calls the Fruityvice API for each selection, and inserts the finished order into an `orders` table. It connects through Streamlit's `snowflake` connection, which is configured outside the repository.
-
-## Built with
-
-Python, Streamlit, Snowflake Snowpark, pandas and requests (see `requirements.txt`). The original app was hand-written; Claude Code helped with the 2026 dependency and SQL-binding changes.
-
-## Run it locally
-
-Prerequisites: Python 3, and a Snowflake account with the `fruit_options` and `orders` tables set up and a `snowflake` connection configured for Streamlit (credentials are never stored in this repository).
-
-```bash
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
-
-## Project stats
+## At a glance
 
 | | |
 |---|---|
-| Timeline | 2024-06-17 → 2026-11-04 (first to last commit) |
-| Commits | 30 |
-| Active Claude Code time | 1.3 hours across 2 sessions (2026-11-03 → 2026-11-04) |
-| Claude tokens (new work) | 210 thousand: 166 input, 164 thousand written to cache, 45 thousand output |
-| Claude tokens (cache reads) | 12.8 million, counted separately (see below) |
-| Models (share of responses) | Claude Opus 5.5 100% |
+| **Status** | Finished course project (2024). Small maintenance fixes in November 2026 (dependency update, SQL parameter binding). |
+| **Stack** | Python, Streamlit 1.54.0, Snowflake Snowpark, pandas, requests |
+| **Run it** | `pip install -r requirements.txt && streamlit run streamlit_app.py`. Needs your own Snowflake account and tables ([Quick start](#quick-start)). |
+| **Verified** | 2026-11-09 against `main` at `085d8ef`: full app flow run headless against a stubbed Snowflake session and the live Fruityvice API. Not run against a real Snowflake account ([how](#testing-and-ci)). |
 
-Claude Code transcripts on the current build machine start on 2026-10-20; earlier sessions were not carried over, so time and token figures cover 2026-10-20 onward only. The commit timeline covers the whole project.
+## Why this exists
 
-<details>
-<summary>How these numbers were measured</summary>
+The question behind the exercise is how small a real data application can be: one that reads reference data
+from a warehouse, enriches it from a third-party API, and writes a transaction back, with no backend server of
+its own. Streamlit plus a Snowpark session answers that in about 50 lines.
 
-Measured from Claude Code session transcripts (the `.jsonl` files Claude Code writes for every session and subagent) with a small read-only script. Each Claude response's `usage` record is counted once. A response counts toward this repo when its working directory is inside the repo (or a git worktree of it); for sessions started from a general folder, when its tool calls point into the repo, or else the project that session was last working on.
+Building it surfaced the problems that make even a tiny app like this non-trivial, and they shape the code:
 
-- **New-work tokens** = input tokens + tokens written to the prompt cache + output tokens.
-- **Cache reads** are the conversation context that Claude re-reads from Anthropic's prompt cache on every turn. They are far larger than new work and are billed at about a tenth of the input price, so they are listed separately rather than added to the total.
-- **Active time** joins transcript events that are at most 15 minutes apart into working intervals, then merges overlapping intervals so parallel sessions and subagents are not double counted. Idle gaps longer than 15 minutes are not counted.
+- **Where the app runs decides how it connects.** It started inside Snowflake (Streamlit in Snowflake, which
+  hands the script an active session). Running it as a standalone web app meant switching to
+  `st.connection("snowflake")`, with credentials configured outside the repository.
+- **Display names are not API keys.** Fruit names in the menu ("Apples") don't always match the API's search
+  terms ("Apple"). Rather than hard-coding a mapping in Python, the menu table carries a `SEARCH_ON` column,
+  so the data owner can fix a lookup without a code change.
+- **User text must never become SQL.** The 2024 version built the `INSERT` by string concatenation, so a name
+  like `O'Brien` broke the statement and a crafted name could change it. The November 2026 fix binds both
+  values as parameters.
 
-All figures are approximate.
+## What works today
 
-</details>
+| capability | status | how it was verified |
+|---|---|---|
+| Fruit menu loaded from `smoothies.public.fruit_options` (`FRUIT_NAME`, `SEARCH_ON`) | Working with a stub | headless run on 2026-11-09 with a stubbed Snowpark session: the multiselect showed the stub's three fruits |
+| Multiselect limited to 5 fruits | Working | `max_selections=5` in [`streamlit_app.py`](streamlit_app.py); Streamlit enforces it in the widget |
+| Nutrition table per chosen fruit from Fruityvice | Working | same run, real API calls: one subheader and one table per fruit; `GET https://fruityvice.com/api/fruit/watermelon` returned 200 on 2026-11-09 |
+| Order insert into `smoothies.public.orders` with bound parameters | Working with a stub | same run: name `O'Brien` + 2 fruits produced `values (?, ?)` with params `['Apples Watermelon ', "O'Brien"]` and the success message |
+| Against a real Snowflake account | Not verified | no Snowflake credentials on the verification machine; the repo holds none by design |
+| Hosted copy | Unknown | the repo description calls this "the web version of the smoothie order form", but nothing in the repo records a live deployment |
+| Input checks, API error handling | Not built | an empty name is accepted; a Fruityvice error or slow response isn't handled (no timeout) |
 
-## Notes
+## Quick start
 
-This is a learning project. The Snowflake connection details are not part of the repository, so the app will not run without your own Snowflake setup.
+**Requirements:** Python 3.10+ (checked with 3.12), and a Snowflake account with:
+
+- a database `smoothies`, schema `public`;
+- a table `fruit_options` with columns `FRUIT_NAME` and `SEARCH_ON`;
+- a table `orders` with at least `ingredients` and `name_on_order` columns;
+- a Streamlit connection named `snowflake`, for example in `.streamlit/secrets.toml` under
+  `[connections.snowflake]`. Keep that file out of git; no credentials are stored in this repository.
+
+```bash
+git clone https://github.com/AlexRosen23/melanies_smoothies.git
+cd melanies_smoothies
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run streamlit_app.py      # opens http://localhost:8501
+```
+
+**Expected result:** a "Customize Your Smoothie!" page. Choosing fruits shows a nutrition table for each, and
+Submit Order writes one row to `orders` and shows "Your Smoothie is ordered!".
+
+Without a working Snowflake connection the page renders the title and name box, then stops at
+`st.connection("snowflake")` with an error (checked headless on 2026-11-09). A real Snowflake account is the only
+part I couldn't run on the verification machine.
+
+## How it works
+
+```mermaid
+flowchart LR
+  user["browser"] --> app["streamlit_app.py<br/>(Streamlit)"]
+  app -->|"st.connection('snowflake')<br/>Snowpark session"| menu[("smoothies.public<br/>fruit_options")]
+  app -->|"GET /api/fruit/{SEARCH_ON}"| fv["Fruityvice API"]
+  app -->|"insert ... values (?, ?)"| orders[("smoothies.public<br/>orders")]
+```
+
+One run of the script, top to bottom (Streamlit re-runs it on every interaction):
+
+1. Read the smoothie name from a text box.
+2. Open the Snowpark session from `st.connection("snowflake")`, select `FRUIT_NAME` and `SEARCH_ON` from
+   `fruit_options`, and convert the result to a pandas DataFrame.
+3. Offer the fruit names in a multiselect (at most 5).
+4. For each chosen fruit, look up its `SEARCH_ON` value, call Fruityvice, and render the JSON as a table.
+5. Show the order summary and a Submit Order button. On click, run the parameterized `INSERT` through
+   `session.sql(..., params=[...])` and show a success message.
+
+Everything is in [`streamlit_app.py`](streamlit_app.py).
+
+## How it was built
+
+The 2024 history is 26 small commits made in GitHub's web editor (committer `GitHub`) on June 17–18, 2024. They
+trace the course's steps:
+
+| step | commits | what changed |
+|---|---|---|
+| Streamlit in Snowflake | `74d5db3` | first version: `get_active_session()`, fruit multiselect, `INSERT` built by string concatenation |
+| Standalone app | `76be090`, `e6e6c1f`, `ceeaccb` | `st.connection("snowflake")` replaces the in-Snowflake session; `requirements.txt` replaces a conda-style environment file |
+| Nutrition data | `789c2ac`, `1057f6d` | Fruityvice call, first hard-coded to watermelon, then one call and table per chosen fruit |
+| Name-to-search mapping | `d549cf5`, `d11670f` | pandas DataFrame of the menu, then the `SEARCH_ON` column used for the API lookup |
+| Small fix | `bdef37a` | no leading space in the ingredients string |
+
+Two changes in November 2026, both made with Claude Code:
+
+- [PR #2](https://github.com/AlexRosen23/melanies_smoothies/pull/2): consolidated dependency update
+  (Streamlit pinned 1.31.1 → 1.54.0), replacing Dependabot's [PR #1](https://github.com/AlexRosen23/melanies_smoothies/pull/1).
+- [PR #3](https://github.com/AlexRosen23/melanies_smoothies/pull/3): the `INSERT` binds its two values instead of
+  pasting them into the SQL (a SQL-injection fix).
+- [PR #4](https://github.com/AlexRosen23/melanies_smoothies/pull/4) and this PR: README rewrites.
+
+## Limitations and what's next
+
+- **No validation.** An empty name or an empty order can be submitted (the button only appears once a fruit is
+  chosen, but the name isn't checked).
+- **No API error handling.** `requests.get` has no timeout, and an error response from Fruityvice is rendered as
+  if it were nutrition data or fails the page.
+- **Deprecated parameter.** Streamlit 1.54 warns that `use_container_width` should become `width="stretch"`.
+- **Ingredients stored as one space-separated string** with a trailing space, as the course's table design
+  expects. A real order system would store one row per ingredient.
+- **No tests in the repo.** If revisited: add the checks above and commit the headless test described below.
+
+## Repository map
+
+| path | what it is |
+|---|---|
+| `streamlit_app.py` | the whole app: UI, Snowflake reads, Fruityvice calls, order insert |
+| `requirements.txt` | Python dependencies (Streamlit pinned to 1.54.0) |
+| `README.md` | this file |
+
+## Testing and CI
+
+There is no test suite in the repo. For this README (2026-11-09) I ran the app headless with Streamlit's
+`AppTest` (Streamlit 1.54.0, Python 3.12): `st.connection` was replaced with a stub whose session returns a
+three-fruit menu and records SQL calls. The run typed the name `O'Brien`, chose two fruits (real Fruityvice
+calls), clicked Submit Order, and checked the rendered tables, the success message and the recorded `INSERT`
+with its bound parameters. No exceptions. The only warnings were the `use_container_width` deprecation. The
+stub and test script are not committed.
+
+GitHub Actions is enabled on this repository, but it has no workflow files, so nothing runs.
+
+## Related
+
+- [Fruityvice API](https://fruityvice.com) (public, no key).
+- [Streamlit connections](https://docs.streamlit.io/develop/api-reference/connections/st.connection).
+- No license file is included, so default copyright applies.
