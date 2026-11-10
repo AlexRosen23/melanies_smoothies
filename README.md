@@ -53,7 +53,7 @@ Building it surfaced the problems that make even a tiny app like this non-trivia
 - a table `fruit_options` with columns `FRUIT_NAME` and `SEARCH_ON`;
 - a table `orders` with at least `ingredients` and `name_on_order` columns;
 - a Streamlit connection named `snowflake`, for example in `.streamlit/secrets.toml` under
-  `[connections.snowflake]`. Keep that file out of git; no credentials are stored in this repository.
+  `[connections.snowflake]`. `.gitignore` excludes that file; no credentials are stored in this repository.
 
 ```bash
 git clone https://github.com/AlexRosen23/melanies_smoothies.git
@@ -111,7 +111,8 @@ Two changes in November 2026, both made with Claude Code:
   (Streamlit pinned 1.31.1 → 1.54.0), replacing Dependabot's [PR #1](https://github.com/AlexRosen23/melanies_smoothies/pull/1).
 - [PR #3](https://github.com/AlexRosen23/melanies_smoothies/pull/3): the `INSERT` binds its two values instead of
   pasting them into the SQL (a SQL-injection fix).
-- [PR #4](https://github.com/AlexRosen23/melanies_smoothies/pull/4) and this PR: README rewrites.
+- [PR #4](https://github.com/AlexRosen23/melanies_smoothies/pull/4) and [PR #5](https://github.com/AlexRosen23/melanies_smoothies/pull/5): README rewrites.
+- 2026-11-10 audit: a `.gitignore` so `.streamlit/secrets.toml` (Snowflake credentials) and virtual environments can't be committed.
 
 ## Limitations and what's next
 
@@ -131,6 +132,7 @@ Two changes in November 2026, both made with Claude Code:
 | `streamlit_app.py` | the whole app: UI, Snowflake reads, Fruityvice calls, order insert |
 | `requirements.txt` | Python dependencies (Streamlit pinned to 1.54.0) |
 | `README.md` | this file |
+| `.gitignore` | keeps `.streamlit/secrets.toml`, virtual environments and Python caches out of git |
 
 ## Testing and CI
 
