@@ -21,7 +21,7 @@ can see or use updates this file in the same PR (see "Keeping this file true").
 | | |
 | --- | --- |
 | Stack | Python, Streamlit 1.54.0 (pinned), Snowflake Snowpark, pandas, requests |
-| Code | 1 app file (`streamlit_app.py`, 53 lines) |
+| Code | 1 app file (`streamlit_app.py`, 58 lines) |
 | Default URL | `http://localhost:8501` (Streamlit's default) |
 | Data sources | Snowflake tables `smoothies.public.fruit_options` and `smoothies.public.orders`; Fruityvice API |
 | Tests / CI | none; no workflow files |
