@@ -43,7 +43,7 @@ Building it surfaced the problems that make even a tiny app like this non-trivia
 | Order insert into `smoothies.public.orders` with bound parameters | Working with a stub | same run: name `O'Brien` + 2 fruits produced `values (?, ?)` with params `['Apples Watermelon ', "O'Brien"]` and the success message |
 | Against a real Snowflake account | Not verified | no Snowflake credentials on the verification machine; the repo holds none by design |
 | Hosted copy | Unknown | the repo description calls this "the web version of the smoothie order form", but nothing in the repo records a live deployment |
-| Input checks, API error handling | Not built | an empty name is accepted; a Fruityvice error or slow response isn't handled (no timeout) |
+| Input checks, API error handling | Basic (unrun) | Submit Order with an empty name shows a warning instead of inserting; the Fruityvice call has a 10 s timeout and a failed call shows a warning for that fruit. Added in November 2026 and checked only by reading the code: Streamlit and Snowflake were not available to run it |
 
 ## Quick start
 
@@ -105,7 +105,7 @@ trace the course's steps:
 | Name-to-search mapping | `d549cf5`, `d11670f` | pandas DataFrame of the menu, then the `SEARCH_ON` column used for the API lookup |
 | Small fix | `bdef37a` | no leading space in the ingredients string |
 
-Two changes in November 2026, both made with Claude Code:
+Changes in November 2026, all made with Claude Code:
 
 - [PR #2](https://github.com/AlexRosen23/melanies_smoothies/pull/2): consolidated dependency update
   (Streamlit pinned 1.31.1 → 1.54.0), replacing Dependabot's [PR #1](https://github.com/AlexRosen23/melanies_smoothies/pull/1).
@@ -116,14 +116,12 @@ Two changes in November 2026, both made with Claude Code:
 
 ## Limitations and what's next
 
-- **No validation.** An empty name or an empty order can be submitted (the button only appears once a fruit is
-  chosen, but the name isn't checked).
-- **No API error handling.** `requests.get` has no timeout, and an error response from Fruityvice is rendered as
-  if it were nutrition data or fails the page.
-- **Deprecated parameter.** Streamlit 1.54 warns that `use_container_width` should become `width="stretch"`.
+- **Minimal validation.** An empty name is refused at submit time; nothing else is checked (the button only appears
+  once a fruit is chosen).
+- **Minimal API error handling.** A Fruityvice failure shows a warning for that fruit; there is no retry.
 - **Ingredients stored as one space-separated string** with a trailing space, as the course's table design
   expects. A real order system would store one row per ingredient.
-- **No tests in the repo.** If revisited: add the checks above and commit the headless test described below.
+- **No tests in the repo.** If revisited: add tests and commit the headless test described below.
 
 ## Repository map
 
@@ -132,6 +130,7 @@ Two changes in November 2026, both made with Claude Code:
 | `streamlit_app.py` | the whole app: UI, Snowflake reads, Fruityvice calls, order insert |
 | `requirements.txt` | Python dependencies (Streamlit pinned to 1.54.0) |
 | `README.md` | this file |
+| `FEATURES.md` | feature-by-feature rundown |
 | `.gitignore` | keeps `.streamlit/secrets.toml`, virtual environments and Python caches out of git |
 
 ## Testing and CI
@@ -140,7 +139,7 @@ There is no test suite in the repo. For this README (2026-11-09) I ran the app h
 `AppTest` (Streamlit 1.54.0, Python 3.12): `st.connection` was replaced with a stub whose session returns a
 three-fruit menu and records SQL calls. The run typed the name `O'Brien`, chose two fruits (real Fruityvice
 calls), clicked Submit Order, and checked the rendered tables, the success message and the recorded `INSERT`
-with its bound parameters. No exceptions. The only warnings were the `use_container_width` deprecation. The
+with its bound parameters. No exceptions. The only warnings were the `use_container_width` deprecation (since replaced by `width="stretch"`). The
 stub and test script are not committed.
 
 GitHub Actions is enabled on this repository, but it has no workflow files, so nothing runs.
