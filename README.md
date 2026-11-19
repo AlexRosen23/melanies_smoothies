@@ -6,6 +6,18 @@ table. I built it in June 2024 while working through a Snowflake and Streamlit c
 the exercise's scenario, not a real shop, and no real orders go through it. It stays public as a record of a
 first data app: one script that reads from a warehouse, calls an outside API and writes back.
 
+## What it does
+
+- Shows a fruit menu loaded from a Snowflake table and lets you choose up to five fruits.
+- Fetches nutrition facts for each chosen fruit from the public Fruityvice API and shows them as tables.
+- Saves the order (a name plus the fruits) as a row in a Snowflake table, using bound SQL parameters so typed text can never alter the statement.
+
+**Who it is for:** anyone curious how small a data app can be. It is a finished course exercise, not a real shop. Without your own Snowflake account the page renders but stops at the connection step.
+
+**How it works:** one Streamlit script re-runs on every click, reading from and writing to Snowflake through a Snowpark session and calling Fruityvice over HTTP (diagram under "How it works" below).
+
+**Try it:** `pip install -r requirements.txt && streamlit run streamlit_app.py`, with a Snowflake connection configured (see "Quick start").
+
 ## At a glance
 
 | | |
