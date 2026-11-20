@@ -1,5 +1,7 @@
 # Melanie's Smoothies
 
+**Smoothie order web form**
+
 A small Streamlit order form backed by Snowflake. You name a smoothie, pick up to five fruits, see nutrition data
 for each one from the public [Fruityvice](https://fruityvice.com) API, and submit the order into a Snowflake
 table. I built it in June 2024 while working through a Snowflake and Streamlit course; "Melanie's Smoothies" is
